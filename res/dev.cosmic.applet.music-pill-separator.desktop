@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Music Pill Separator
+Comment=Thin separator next to the Music Pill
+Type=Application
+Exec=music-pill-separator
+Terminal=false
+Categories=COSMIC;
+Icon=audio-x-generic-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
+X-OverflowPriority=10

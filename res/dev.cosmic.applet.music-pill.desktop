@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Music Pill
+Comment=macOS-style music pill for the COSMIC panel
+Type=Application
+Exec=music-pill
+Terminal=false
+Categories=COSMIC;
+Icon=audio-x-generic-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
+X-OverflowPriority=10

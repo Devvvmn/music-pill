@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Music pill icon: a musical note on a pill-shaped badge -->
+  <rect x="1.5" y="4.5" width="13" height="7" rx="3.5" fill="#5e5e5e"/>
+  <circle cx="5.5" cy="11" r="2" fill="#ffffff"/>
+  <path d="M7.5 11 V 4.5 L 11.5 3.5 V 10" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

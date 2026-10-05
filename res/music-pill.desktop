@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Music Pill
+Comment=Compact music pill for the Cosmic dock
+Icon=music-pill
+Exec=music-pill
+Categories=Audio;

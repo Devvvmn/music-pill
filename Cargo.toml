@@ -1,0 +1,25 @@
+[package]
+name = "music-pill"
+version = "0.1.0"
+edition = "2021"
+description = "macOS-style Music Pill applet for the COSMIC panel"
+license = "MPL-2.0"
+
+[dependencies]
+# libcosmic is consumed from git: the crate is named `libcosmic`,
+# but its library target is `cosmic` (see [lib] name in its Cargo.toml).
+libcosmic = { git = "https://github.com/pop-os/libcosmic.git", features = [
+    "applet",
+    "applet-token",
+    "multi-window",
+    "tokio",
+    "wayland",
+] }
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "process"] }
+futures = "0.3"
+image = "0.25"
+url = "2"
+base64 = "0.22"
+serde = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
