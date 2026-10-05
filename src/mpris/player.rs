@@ -24,7 +24,7 @@ pub enum Control {
 
 /// D-Bus name prefix of all MPRIS players.
 pub const MPRIS_PREFIX: &str = "org.mpris.MediaPlayer2.";
-/// Set once a player ignores `Volume` writes; volume then follows the system sink.
+/// Set once a player ignores `Volume` writes; volume then follows the player's own audio streams.
 static SYSTEM_VOLUME: AtomicBool = AtomicBool::new(false);
 
 const MPRIS_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -87,7 +87,7 @@ pub async fn read_info(conn: &Connection, name: &str) -> zbus::Result<PlayerInfo
         .map(|p| p.max(0) as u64)
         .unwrap_or(0);
     info.volume = if SYSTEM_VOLUME.load(Ordering::Relaxed) {
-        system_volume().await.unwrap_or(1.0)
+        app_volume(name).await.unwrap_or(info.volume.max(1.0))
     } else {
         proxy.get_property::<f64>("Volume").await.unwrap_or(0.0)
     };
@@ -123,7 +123,7 @@ pub async fn control(conn: &Connection, name: &str, action: Control) -> zbus::Re
                 }
                 SYSTEM_VOLUME.store(true, Ordering::Relaxed);
             }
-            set_system_volume(volume).await;
+            set_app_volume(name, volume).await;
             Ok(())
         }
     }
@@ -162,23 +162,68 @@ fn parse_metadata(metadata: &HashMap<String, OwnedValue>) -> PlayerInfo {
     info
 }
 
-/// Read the default sink volume via WirePlumber (0.0..=1.0).
-async fn system_volume() -> Option<f64> {
-    let out = tokio::process::Command::new("wpctl")
-        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
-        .output()
-        .await
-        .ok()?;
-    String::from_utf8_lossy(&out.stdout)
-        .split_whitespace()
-        .nth(1)?
-        .parse()
-        .ok()
+/// A PipeWire/PulseAudio playback stream belonging to a player.
+struct Stream {
+    id: u32,
+    /// Volume in 0.0..=1.0.
+    volume: f64,
 }
 
-async fn set_system_volume(volume: f64) {
-    let _ = tokio::process::Command::new("wpctl")
-        .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &format!("{:.2}", volume.clamp(0.0, 1.0))])
-        .status()
-        .await;
+/// Find the playback streams of the player behind an MPRIS bus name,
+/// e.g. `org.mpris.MediaPlayer2.brave.instance2` -> streams of the `brave` app.
+async fn player_streams(bus_name: &str) -> Vec<Stream> {
+    let key = bus_name
+        .strip_prefix(MPRIS_PREFIX)
+        .and_then(|rest| rest.split('.').next())
+        .unwrap_or_default()
+        .to_lowercase();
+    if key.is_empty() {
+        return Vec::new();
+    }
+    let Ok(out) = tokio::process::Command::new("pactl")
+        .args(["list", "sink-inputs"])
+        .env("LC_ALL", "C")
+        .output()
+        .await
+    else {
+        return Vec::new();
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+
+    let mut streams = Vec::new();
+    for block in text.split("Sink Input #").skip(1) {
+        let Some(id) = block.lines().next().and_then(|l| l.trim().parse().ok()) else {
+            continue;
+        };
+        let lower = block.to_lowercase();
+        let belongs = ["application.name", "application.process.binary"].iter().any(|prop| {
+            lower
+                .lines()
+                .any(|l| l.trim_start().starts_with(prop) && l.contains(&key))
+        });
+        let volume = block
+            .lines()
+            .find(|l| l.trim_start().starts_with("Volume:"))
+            .and_then(|l| l.split('/').nth(1))
+            .and_then(|pct| pct.trim().trim_end_matches('%').parse::<f64>().ok());
+        if let (true, Some(volume)) = (belongs, volume) {
+            streams.push(Stream { id, volume: volume / 100.0 });
+        }
+    }
+    streams
+}
+
+async fn app_volume(bus_name: &str) -> Option<f64> {
+    player_streams(bus_name).await.first().map(|s| s.volume)
+}
+
+/// Set the volume of the player's own audio streams (not the system volume).
+async fn set_app_volume(bus_name: &str, volume: f64) {
+    let percent = format!("{}%", (volume.clamp(0.0, 1.0) * 100.0).round());
+    for stream in player_streams(bus_name).await {
+        let _ = tokio::process::Command::new("pactl")
+            .args(["set-sink-input-volume", &stream.id.to_string(), &percent])
+            .status()
+            .await;
+    }
 }
