@@ -13,6 +13,8 @@ use crate::ui::controls;
 
 /// Rest size of the pill window.
 const PILL_HEIGHT: f32 = 40.0;
+/// Diameter of the collapsed (idle) pill, matching the dock icons.
+const IDLE_SIZE: f32 = 46.0;
 
 /// Size limits for the expanded popup.
 const POPUP_MAX_WIDTH: f32 = 360.0;
@@ -150,13 +152,20 @@ impl Application for MusicPill {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = controls::compact_row(self);
+        // Nothing playing: shrink to a round icon button.
+        let idle = self.info.name.is_empty() || self.info.status == Status::Stopped;
+        let content = if idle {
+            controls::idle_icon()
+        } else {
+            controls::compact_row(self)
+        };
 
         let have_popup = self.popup;
         let pill = widget::button::custom(content)
             .class(controls::pill_button_style())
-            .padding([4, 12])
-            .height(Length::Fixed(PILL_HEIGHT))
+            .padding(if idle { [0, 0] } else { [4, 12] })
+            .height(Length::Fixed(if idle { IDLE_SIZE } else { PILL_HEIGHT }))
+            .width(if idle { Length::Fixed(IDLE_SIZE) } else { Length::Shrink })
             .on_press_with_rectangle(move |offset, bounds| {
                 if let Some(id) = have_popup {
                     Message::Surface(destroy_popup(id))

@@ -113,6 +113,16 @@ fn volume_slider(app: &MusicPill) -> Element<'_, Message> {
         .into()
 }
 
+/// The collapsed pill: a centered music icon, shown when nothing is playing.
+pub fn idle_icon() -> Element<'static, Message> {
+    widget::container(widget::icon::from_name("multimedia-audio-player-symbolic").size(26))
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
 /// The compact pill content: art, title over artist, and transport buttons.
 pub fn compact_row(app: &MusicPill) -> Element<'_, Message> {
     let title = if app.info.title.is_empty() {
